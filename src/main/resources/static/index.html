@@ -40,6 +40,80 @@
 			acceptedTerms: false
 		};
 
+		const EMPTY_PAYMENT_ERRORS = {
+			cardNumber: "",
+			expiryMonth: "",
+			expiryYear: "",
+			cvv: ""
+		};
+
+		function formatCardNumber(value) {
+			const digits = value.replace(/\D/g, "").slice(0, 16);
+			return digits.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+		}
+
+		function validatePaymentField(field, value) {
+			if (field === "cardNumber") {
+				if (/[^\d\s]/.test(value)) return "Kart numarası sadece rakamlardan oluşmalıdır.";
+				if (value.replace(/\s/g, "").length !== 16) return "Kart numarası 16 haneli olmalıdır.";
+				return "";
+			}
+			if (field === "expiryMonth") {
+				if (!/^\d{2}$/.test(value)) return "Ay değeri 01 ile 12 arasında olmalıdır.";
+				const month = Number(value);
+				return month >= 1 && month <= 12 ? "" : "Ay değeri 01 ile 12 arasında olmalıdır.";
+			}
+			if (field === "expiryYear") {
+				if (!/^\d{4}$/.test(value) || Number(value) < 2026) return "Yıl 2026 veya daha büyük olmalıdır.";
+				return "";
+			}
+			if (field === "cvv") {
+				if (!/^\d{3}$/.test(value)) return "CVV 3 haneli olmalıdır.";
+				return "";
+			}
+			return "";
+		}
+
+		function validatePayment(payment) {
+			return {
+				cardNumber: validatePaymentField("cardNumber", payment.cardNumber),
+				expiryMonth: validatePaymentField("expiryMonth", payment.expiryMonth),
+				expiryYear: validatePaymentField("expiryYear", payment.expiryYear),
+				cvv: validatePaymentField("cvv", payment.cvv)
+			};
+		}
+
+		function hasPaymentErrors(errors) {
+			return Object.values(errors).some(Boolean);
+		}
+
+		function mapPaymentError(message) {
+			if (message === "Kart numarası 16 haneli olmalıdır." || message === "Kart numarası sadece rakamlardan oluşmalıdır.") {
+				return { field: "cardNumber", message };
+			}
+			if (message === "Ay değeri 01 ile 12 arasında olmalıdır.") {
+				return { field: "expiryMonth", message };
+			}
+			if (message === "Yıl 2026 veya daha büyük olmalıdır.") {
+				return { field: "expiryYear", message };
+			}
+			if (message === "CVV 3 haneli olmalıdır.") {
+				return { field: "cvv", message };
+			}
+			return null;
+		}
+
+		async function extractErrorMessage(response, fallbackMessage) {
+			const bodyText = await response.text();
+			if (!bodyText) return fallbackMessage;
+			try {
+				const payload = JSON.parse(bodyText);
+				return payload?.message || payload?.detail || payload?.error || fallbackMessage;
+			} catch {
+				return bodyText;
+			}
+		}
+
 		function StatCard({ label, value }) {
 			return (
 				<div className="stat-card">
@@ -49,16 +123,40 @@
 			);
 		}
 
-		function PaymentFields({ payment, setPayment }) {
+		function PaymentFields({ payment, setPayment, errors, setErrors }) {
+			function updateField(field, rawValue) {
+				const nextValue = field === "cardNumber"
+					? formatCardNumber(rawValue)
+					: rawValue.replace(/\D/g, "").slice(0, field === "expiryMonth" ? 2 : field === "expiryYear" ? 4 : 3);
+				const nextPayment = { ...payment, [field]: nextValue };
+				const nextError = field === "cardNumber" && /[^\d\s]/.test(rawValue)
+					? "Kart numarası sadece rakamlardan oluşmalıdır."
+					: validatePaymentField(field, nextValue);
+				setPayment(nextPayment);
+				setErrors({ ...errors, [field]: nextError });
+			}
+
 			return (
 				<div className="payment-box">
 					<p className="payment-title">Ödeme Bilgileri</p>
 					<div className="payment-grid">
 						<input type="text" value={payment.cardHolderName} onChange={(e) => setPayment({ ...payment, cardHolderName: e.target.value })} placeholder="Kart üzerindeki ad" />
-						<input type="text" value={payment.cardNumber} onChange={(e) => setPayment({ ...payment, cardNumber: e.target.value })} placeholder="4242 4242 4242 4242" />
-						<input type="text" value={payment.expiryMonth} onChange={(e) => setPayment({ ...payment, expiryMonth: e.target.value })} placeholder="Ay" />
-						<input type="text" value={payment.expiryYear} onChange={(e) => setPayment({ ...payment, expiryYear: e.target.value })} placeholder="Yıl" />
-						<input type="text" value={payment.cvv} onChange={(e) => setPayment({ ...payment, cvv: e.target.value })} placeholder="CVV" />
+						<div>
+							<input type="text" value={payment.cardNumber} onChange={(e) => updateField("cardNumber", e.target.value)} placeholder="4242 4242 4242 4242" inputMode="numeric" />
+							{errors.cardNumber ? <p className="error-message">{errors.cardNumber}</p> : null}
+						</div>
+						<div>
+							<input type="text" value={payment.expiryMonth} onChange={(e) => updateField("expiryMonth", e.target.value)} placeholder="Ay" inputMode="numeric" />
+							{errors.expiryMonth ? <p className="error-message">{errors.expiryMonth}</p> : null}
+						</div>
+						<div>
+							<input type="text" value={payment.expiryYear} onChange={(e) => updateField("expiryYear", e.target.value)} placeholder="Yıl" inputMode="numeric" />
+							{errors.expiryYear ? <p className="error-message">{errors.expiryYear}</p> : null}
+						</div>
+						<div>
+							<input type="text" value={payment.cvv} onChange={(e) => updateField("cvv", e.target.value)} placeholder="CVV" inputMode="numeric" />
+							{errors.cvv ? <p className="error-message">{errors.cvv}</p> : null}
+						</div>
 					</div>
 					<label className="terms-line">
 						<input type="checkbox" checked={payment.acceptedTerms} onChange={(e) => setPayment({ ...payment, acceptedTerms: e.target.checked })} />
@@ -98,6 +196,8 @@
 			const [loginForm, setLoginForm] = useState({ email: "", password: "" });
 			const [registerPayment, setRegisterPayment] = useState(EMPTY_PAYMENT);
 			const [upgradePayment, setUpgradePayment] = useState(EMPTY_PAYMENT);
+			const [registerPaymentErrors, setRegisterPaymentErrors] = useState(EMPTY_PAYMENT_ERRORS);
+			const [upgradePaymentErrors, setUpgradePaymentErrors] = useState(EMPTY_PAYMENT_ERRORS);
 			const [registerForm, setRegisterForm] = useState({
 				username: "",
 				email: "",
@@ -154,6 +254,14 @@
 
 			async function handleRegister(event) {
 				event.preventDefault();
+				if (registerForm.planType !== "FREE") {
+					const nextErrors = validatePayment(registerPayment);
+					setRegisterPaymentErrors(nextErrors);
+					if (hasPaymentErrors(nextErrors)) {
+						setAuthError("Lütfen ödeme alanlarındaki hataları düzeltin.");
+						return;
+					}
+				}
 				setAuthSubmitting(true);
 				setAuthError("");
 				try {
@@ -166,13 +274,19 @@
 						headers: { "Content-Type": "application/json", "Accept": "application/json" },
 						body: JSON.stringify(payload)
 					});
-					if (!response.ok) throw new Error(await response.text() || "Kayıt başarısız.");
+					if (!response.ok) throw new Error(await extractErrorMessage(response, "Kayıt başarısız."));
 					const data = await response.json();
 					setAuth(data);
 					setStage("app");
 					setCancelError("");
 				} catch (err) {
-					setAuthError(err.message || "Kayıt başarısız.");
+					const paymentError = mapPaymentError(err.message);
+					if (paymentError) {
+						setRegisterPaymentErrors({ ...EMPTY_PAYMENT_ERRORS, [paymentError.field]: paymentError.message });
+						setAuthError("Lütfen ödeme alanlarındaki hataları düzeltin.");
+					} else {
+						setAuthError(err.message || "Kayıt başarısız.");
+					}
 				} finally {
 					setAuthSubmitting(false);
 				}
@@ -180,6 +294,12 @@
 
 			async function handleUpgrade(event) {
 				event.preventDefault();
+				const nextErrors = validatePayment(upgradePayment);
+				setUpgradePaymentErrors(nextErrors);
+				if (hasPaymentErrors(nextErrors)) {
+					setUpgradeError("Lütfen ödeme alanlarındaki hataları düzeltin.");
+					return;
+				}
 				setUpgradeSubmitting(true);
 				setUpgradeError("");
 				try {
@@ -188,14 +308,21 @@
 						headers: { "Content-Type": "application/json", "Accept": "application/json" },
 						body: JSON.stringify({ planType: selectedPlan, paymentDetails: upgradePayment })
 					});
-					if (!response.ok) throw new Error(await response.text() || "Plan yükseltme başarısız.");
+					if (!response.ok) throw new Error(await extractErrorMessage(response, "Plan yükseltme başarısız."));
 					const data = await response.json();
 					setAuth(data);
 					setUpgradePayment(EMPTY_PAYMENT);
+					setUpgradePaymentErrors(EMPTY_PAYMENT_ERRORS);
 					setStage("app");
 					setCancelError("");
 				} catch (err) {
-					setUpgradeError(err.message || "Plan yükseltme başarısız.");
+					const paymentError = mapPaymentError(err.message);
+					if (paymentError) {
+						setUpgradePaymentErrors({ ...EMPTY_PAYMENT_ERRORS, [paymentError.field]: paymentError.message });
+						setUpgradeError("Lütfen ödeme alanlarındaki hataları düzeltin.");
+					} else {
+						setUpgradeError(err.message || "Plan yükseltme başarısız.");
+					}
 				} finally {
 					setUpgradeSubmitting(false);
 				}
@@ -229,7 +356,9 @@
 					setLoginForm({ email: "", password: "" });
 					setRegisterForm({ username: "", email: "", password: "", planType: "FREE" });
 					setRegisterPayment(EMPTY_PAYMENT);
+					setRegisterPaymentErrors(EMPTY_PAYMENT_ERRORS);
 					setUpgradePayment(EMPTY_PAYMENT);
+					setUpgradePaymentErrors(EMPTY_PAYMENT_ERRORS);
 					setCancelError("");
 				}
 			}
@@ -333,7 +462,7 @@
 											<label className={"plan-card pro-plan-card" + (registerForm.planType === "PRO" ? " selected-plan" : "")}><input type="radio" name="planType" value="PRO" checked={registerForm.planType === "PRO"} onChange={(e) => setRegisterForm({ ...registerForm, planType: e.target.value })} /><span>Pro</span><strong>119.99 TL / ay</strong></label>
 											<label className={"plan-card premium-plan-card" + (registerForm.planType === "PREMIUM" ? " selected-plan" : "")}><input type="radio" name="planType" value="PREMIUM" checked={registerForm.planType === "PREMIUM"} onChange={(e) => setRegisterForm({ ...registerForm, planType: e.target.value })} /><span>Premium</span><strong>249.99 TL / ay</strong></label>
 										</div>
-										{registerForm.planType !== "FREE" ? <PaymentFields payment={registerPayment} setPayment={setRegisterPayment} /> : null}
+										{registerForm.planType !== "FREE" ? <PaymentFields payment={registerPayment} setPayment={setRegisterPayment} errors={registerPaymentErrors} setErrors={setRegisterPaymentErrors} /> : null}
 										{authError ? <p className="error-message">{authError}</p> : null}
 										<button type="submit" disabled={authSubmitting}>{authSubmitting ? "Kayıt yapılıyor..." : "Kayıt ol"}</button>
 									</form>
@@ -363,7 +492,7 @@
 
 							<form className="upgrade-form" onSubmit={handleUpgrade}>
 								<p className="billing-note">{selectedPlan === "PRO" ? auth.proPriceLabel : auth.premiumPriceLabel}</p>
-								<PaymentFields payment={upgradePayment} setPayment={setUpgradePayment} />
+								<PaymentFields payment={upgradePayment} setPayment={setUpgradePayment} errors={upgradePaymentErrors} setErrors={setUpgradePaymentErrors} />
 								{upgradeError ? <p className="error-message">{upgradeError}</p> : null}
 								<button type="submit" disabled={upgradeSubmitting}>{upgradeSubmitting ? "Ödeme alınıyor..." : selectedPlan + " satın al"}</button>
 							</form>

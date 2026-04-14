@@ -271,22 +271,26 @@ public class AuthService {
 			throw new IllegalArgumentException("Kart uzerindeki ad zorunludur.");
 		}
 
-		String cardNumber = digitsOnly(paymentDetails.getCardNumber());
+		String rawCardNumber = normalize(paymentDetails.getCardNumber());
+		String cardNumber = digitsOnly(rawCardNumber);
 		String expiryMonth = digitsOnly(paymentDetails.getExpiryMonth());
 		String expiryYear = digitsOnly(paymentDetails.getExpiryYear());
 		String cvv = digitsOnly(paymentDetails.getCvv());
 
-		if (cardNumber.length() < 16) {
-			throw new IllegalArgumentException("Kart numarasi 16 haneli olmali.");
+		if (StringUtils.hasText(rawCardNumber) && !rawCardNumber.matches("[0-9 ]+")) {
+			throw new IllegalArgumentException("Kart numarası sadece rakamlardan oluşmalıdır.");
 		}
-		if (expiryMonth.length() == 0 || Integer.parseInt(expiryMonth) < 1 || Integer.parseInt(expiryMonth) > 12) {
-			throw new IllegalArgumentException("Gecerli bir son kullanma ayi girin.");
+		if (cardNumber.length() != 16) {
+			throw new IllegalArgumentException("Kart numarası 16 haneli olmalıdır.");
 		}
-		if (expiryYear.length() < 2) {
-			throw new IllegalArgumentException("Gecerli bir son kullanma yili girin.");
+		if (expiryMonth.length() != 2 || Integer.parseInt(expiryMonth) < 1 || Integer.parseInt(expiryMonth) > 12) {
+			throw new IllegalArgumentException("Ay değeri 01 ile 12 arasında olmalıdır.");
 		}
-		if (cvv.length() < 3) {
-			throw new IllegalArgumentException("CVV en az 3 haneli olmali.");
+		if (expiryYear.length() != 4 || Integer.parseInt(expiryYear) < 2026) {
+			throw new IllegalArgumentException("Yıl 2026 veya daha büyük olmalıdır.");
+		}
+		if (cvv.length() != 3) {
+			throw new IllegalArgumentException("CVV 3 haneli olmalıdır.");
 		}
 		if (!paymentDetails.isAcceptedTerms()) {
 			throw new IllegalArgumentException("Premium satin alma kosullarini kabul etmelisiniz.");
