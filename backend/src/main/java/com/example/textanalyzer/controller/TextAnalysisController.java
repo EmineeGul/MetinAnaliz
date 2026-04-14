@@ -62,6 +62,6 @@ public class TextAnalysisController {
 			return analyze(extractedText, session);
 		} catch (IllegalArgumentException exception) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
-		}
+		}//deneme yorum satırı
 	}
 }

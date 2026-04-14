@@ -5,8 +5,8 @@ services:
       dockerfile: Dockerfile
     ports:
       - "8081:8081"
-    volumes:
-      - ./backend/data:/app/data
+    environment:
+      - SPRING_DATASOURCE_URL=jdbc:h2:file:/tmp/textanalyzerdb
     networks:
       - app-network
 
