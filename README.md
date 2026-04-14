@@ -45,6 +45,7 @@ Uygulama ilk calistiginda asagidaki premium kullanici otomatik olusturulur:
 ### Maven ile
 
 ```bash
+cd backend
 mvn spring-boot:run
 ```
 
@@ -57,6 +58,7 @@ http://localhost:8081
 ### Paketleme
 
 ```bash
+cd backend
 mvn clean package
 ```
 
@@ -70,6 +72,7 @@ docker compose up --build
 
 - H2 Console: `http://localhost:8081/h2-console`
 - JDBC URL: `jdbc:h2:file:./data/textanalyzerdb`
+- Proje yapisinda veritabani dosyasi `backend/data/` altinda tutulur.
 - Kullanici adi: `sa`
 - Sifre: bos
 
