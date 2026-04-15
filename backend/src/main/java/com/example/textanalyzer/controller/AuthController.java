@@ -75,6 +75,6 @@ public class AuthController {
 			return ResponseEntity.ok(authService.cancelPaidPlan(session));
 		} catch (IllegalArgumentException exception) {
 			throw new ResponseStatusException(HttpStatus.BAD_REQUEST, exception.getMessage());
-		}//deneme yorummm
+		}//jenkins deneme satırı
 	}
 }
