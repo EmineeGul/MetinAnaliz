@@ -500,7 +500,7 @@ export default function App() {
         <section className="gate-panel single-panel">
           <div className="gate-copy">
             <p className="eyebrow">Yükleniyor</p>
-            <h1>MetinAnaliz</h1>
+            <h1>TESTANALİZİ</h1>
           </div>
         </section>
       </main>
