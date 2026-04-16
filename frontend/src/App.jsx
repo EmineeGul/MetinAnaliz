@@ -534,7 +534,7 @@ export default function App() {
             <button className="secondary-button" type="button" onClick={continueAsGuest}>
               Misafir olarak devam et
             </button>
-          </div>//deneme
+          </div>
 
           <div className="login-panel">
             <div className="auth-switch">
