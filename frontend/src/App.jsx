@@ -515,8 +515,7 @@ export default function App() {
             <p className="eyebrow">Planlar</p>
             <h1>MetinAnaliz</h1>
             <p className="hero-description">
-              Free, Pro ve Premium arasından seçim yap. Satın alma ekranları artık ayrı ve fiyatlar açıkça
-              görünüyor.
+              Free, Pro ve Premium arasından seçim yap.
             </p>
             <div className="limit-list">
               <div className="limit-item">
